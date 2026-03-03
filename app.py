@@ -64,7 +64,7 @@ def load_data():
 # --- INTERFAZ ---
 df = load_data()
 
-st.title("🇵🇪 Sistema de Consulta Nacional ITSE")
+st.title("🇵🇪 Sistema de Consulta Sedes IPD")
 
 busqueda = st.text_input("🔍 Buscar por local, dirección, código o ubigeo:", "")
 st.sidebar.header("Filtros")
@@ -86,4 +86,5 @@ def style_alerta(val):
 
 st.write(f"Mostrando {len(df_res)} registros.")
 st.dataframe(df_res.style.applymap(style_alerta, subset=['ALERTA']), use_container_width=True)
+
 
