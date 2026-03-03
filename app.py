@@ -24,47 +24,48 @@ def load_data():
     # 3. LÓGICA DE ALERTAS
     hoy = pd.Timestamp(datetime.now().date())
     
-    def aplicar_reglas(row):
-        # Función interna para limpiar y estandarizar textos
-        def limpiar(campo):
-            return str(row.get(campo, '')).upper().strip()
+   def aplicar_reglas(row):
+        try:
+            # Función interna para limpiar y estandarizar textos
+            def limpiar(campo):
+                val = row.get(campo, '')
+                return str(val).upper().strip() if pd.notnull(val) else ''
 
-        # Extraer valores para las nuevas reglas
-        infra = limpiar('TIPO INFRAESTRUCTURA')
-        uso = limpiar('USO ESPECIFICO')
-        predio = limpiar('TIPO PREDIO')
-        est_itse = limpiar('ESTADO ITSE')
-        
-        # Valores para reglas anteriores
-        prob_est = limpiar('PROBLEMAS ESTRUCTURALES')
-        itse_status = limpiar('ITSE')
-        
-        # --- NUEVA REGLA: TERRENO / NO APLICA (Prioridad 1) ---
-        if (infra == 'TERRENO' or 
-            uso == 'TERRENO' or 
-            predio == 'TERRENO' or 
-            est_itse == 'NO APLICA'):
-            return "NO APLICA(TERRENO)"
-
-        # --- REGLA GENERAL: SIN ITSE (Prioridad 2) ---
-        if prob_est == 'SI' or itse_status == 'SIN ITSE':
-            return "SIN ITSE"
-        
-        # --- REGLAS ESPECÍFICAS SEGÚN ZONA (Vigencias) ---
-        if row['ZONA'] == 'LIMA':
-            f_limite = pd.to_datetime(row.get('FECHA LIMITE'), errors='coerce')
-            if pd.notnull(f_limite):
-                return "VIGENTE" if (f_limite - hoy).days > 0 else "VENCIDO"
-                
-        elif row['ZONA'] == 'PROVINCIAS':
-            f_ven_itse = pd.to_datetime(row.get('FVEN ITSE'), errors='coerce')
-            f_limite_p = pd.to_datetime(row.get('FECHA LIMITE'), errors='coerce')
+            # Extraer valores (Si no existe la columna, devolverá vacío en lugar de error)
+            infra = limpiar('TIPO INFRAESTRUCTURA')
+            uso = limpiar('USO ESPECIFICO')
+            predio = limpiar('TIPO PREDIO')
+            est_itse = limpiar('ESTADO ITSE')
+            prob_est = limpiar('PROBLEMAS ESTRUCTURALES')
+            itse_status = limpiar('ITSE')
+            zona = limpiar('ZONA')
             
-            if pd.notnull(f_ven_itse):
-                return "ITSE VIGENTE" if (f_ven_itse - hoy).days > 0 else "ITSE VENCIDO"
-            elif pd.notnull(f_limite_p):
-                return "VIGENTE" if (f_limite_p - hoy).days > 0 else "VENCIDO"
-        
-        return "SIN DATOS"
+            # --- NUEVA REGLA: TERRENO ---
+            if 'TERRENO' in [infra, uso, predio] or est_itse == 'NO APLICA':
+                return "NO APLICA(TERRENO)"
+
+            # --- REGLA GENERAL: SIN ITSE ---
+            if prob_est == 'SI' or itse_status == 'SIN ITSE':
+                return "SIN ITSE"
+            
+            # --- VIGENCIAS ---
+            if zona == 'LIMA':
+                f_limite = pd.to_datetime(row.get('FECHA LIMITE'), errors='coerce')
+                if pd.notnull(f_limite):
+                    return "VIGENTE" if (f_limite - hoy).days > 0 else "VENCIDO"
+                    
+            elif zona == 'PROVINCIAS':
+                f_ven_itse = pd.to_datetime(row.get('FVEN ITSE'), errors='coerce')
+                f_limite_p = pd.to_datetime(row.get('FECHA LIMITE'), errors='coerce')
+                
+                if pd.notnull(f_ven_itse):
+                    return "ITSE VIGENTE" if (f_ven_itse - hoy).days > 0 else "ITSE VENCIDO"
+                elif pd.notnull(f_limite_p):
+                    return "VIGENTE" if (f_limite_p - hoy).days > 0 else "VENCIDO"
+            
+            return "SIN DATOS"
+        except Exception as e:
+            return "ERROR REGLA"
 
     df['ALERTA'] = df.apply(aplicar_reglas, axis=1)
+    return df.fillna("-")
